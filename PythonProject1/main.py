@@ -4,15 +4,15 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor
 
-# Папка (Мамка) для изображений
+"""Папка для изображений"""
 OUTPUT_DIR = "images"
 
-# Делаем папку (мамку), если ее нет
+"""Делаем папку, если ее нет"""
 if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 def download_image(image_url, output_dir):
-    """Скачивает изображение по URL и сохраняет его в указанную папку."""
+    """Скачиваем изображения и сохраняем его в созданную папку"""
     try:
         response = requests.get(image_url, stream=True, timeout=10)
         response.raise_for_status()
@@ -25,7 +25,7 @@ def download_image(image_url, output_dir):
         print(f"Ошибка при скачивании {image_url}: {e}")
 
 def parse_images_from_page(url):
-    """Парсит изображения с указанной страницы и возвращает список URL-адресов."""
+    """Парсим изображения с указанной страницы и возвращаем в консоль список ссылок"""
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -34,7 +34,7 @@ def parse_images_from_page(url):
         for img in soup.find_all("img"):
             img_url = img.get("src")
             if img_url:
-                # Преобразуем относительный URL в абсолютный
+                """Преобразуем относительную ссылку в абсолютную"""
                 full_url = urljoin(url, img_url)
                 images.append(full_url)
         return images
@@ -43,10 +43,10 @@ def parse_images_from_page(url):
         return []
 
 def main():
-    # URL для парсинга
+    """Ввод ссылки для парсинга"""
     start_url = input("Введите URL для парсинга изображений: ")
 
-    # Парсим изображения с начальной страницы
+    """Парсинг с исходной страницы"""
     print(f"Парсинг изображений с {start_url}...")
     image_urls = parse_images_from_page(start_url)
 
@@ -54,7 +54,7 @@ def main():
         print("Не удалось найти изображения.")
         return
 
-    # Скачиваем изображения с использованием многопоточности
+    """Постарался сделать многопоток, вроде работает))"""
     print(f"Найдено {len(image_urls)} изображений. Начинаем скачивание...")
     with ThreadPoolExecutor(max_workers=10) as executor:
         for image_url in image_urls:
