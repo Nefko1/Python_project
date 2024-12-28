@@ -11,14 +11,22 @@ class FileManager:
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-class ImageDownloader:
-    @staticmethod
-    def download_image(image_url, output_dir):
+class BaseDownloader:
+    def __init__(self, output_dir):
+        self.output_dir = output_dir
+        FileManager.create_directory(self.output_dir)
+
+    def download(self, url):
+        """Базовый метод для скачивания, должен быть реализован в наследниках."""
+        raise NotImplementedError("Этот метод должен быть реализован в подклассе.")
+
+class ImageDownloader(BaseDownloader):
+    def download(self, image_url):
         """Скачивает изображение и сохраняет его в указанную папку."""
         try:
             response = requests.get(image_url, stream=True, timeout=10)
             response.raise_for_status()
-            filename = os.path.join(output_dir, os.path.basename(image_url.split('?')[0]))
+            filename = os.path.join(self.output_dir, os.path.basename(image_url.split('?')[0]))
             with open(filename, 'wb') as f:
                 for chunk in response.iter_content(1024):
                     f.write(chunk)
@@ -26,16 +34,23 @@ class ImageDownloader:
         except Exception as e:
             print(f"Ошибка при скачивании {image_url}: {e}")
 
-class ImageScraper:
+class BaseScraper:
+    def __init__(self, url):
+        self.url = url
+        self.data = []
+
+    def parse(self):
+        """Базовый метод для парсинга, должен быть реализован в наследниках."""
+        raise NotImplementedError("Этот метод должен быть реализован в подклассе.")
+
+class ImageScraper(BaseScraper):
     OUTPUT_DIR = "images"
 
     def __init__(self, url):
-        """Инициализация парсера с URL."""
-        self.url = url
-        self.image_urls = []
-        FileManager.create_directory(self.OUTPUT_DIR)
+        super().__init__(url)
+        self.downloader = ImageDownloader(self.OUTPUT_DIR)
 
-    def parse_images(self):
+    def parse(self):
         """Парсит изображения с веб-страницы."""
         try:
             response = requests.get(self.url, timeout=10)
@@ -45,20 +60,20 @@ class ImageScraper:
                 img_url = img.get("src")
                 if img_url:
                     full_url = urljoin(self.url, img_url)
-                    self.image_urls.append(full_url)
+                    self.data.append(full_url)
         except Exception as e:
             print(f"Ошибка при парсинге {self.url}: {e}")
 
     def download_images(self):
         """Скачивает все найденные изображения."""
-        if not self.image_urls:
+        if not self.data:
             print("Не найдено изображений для скачивания.")
             return
 
-        print(f"Найдено {len(self.image_urls)} изображений. Начинаем скачивание...")
+        print(f"Найдено {len(self.data)} изображений. Начинаем скачивание...")
         with ThreadPoolExecutor(max_workers=10) as executor:
-            for image_url in self.image_urls:
-                executor.submit(ImageDownloader.download_image, image_url, self.OUTPUT_DIR)
+            for image_url in self.data:
+                executor.submit(self.downloader.download, image_url)
 
 class ImageScraperApp:
     @staticmethod
@@ -71,7 +86,7 @@ class ImageScraperApp:
 
         scraper = ImageScraper(url)
         print(f"Парсинг изображений с {url}...")
-        scraper.parse_images()
+        scraper.parse()
         scraper.download_images()
 
 if __name__ == "__main__":
